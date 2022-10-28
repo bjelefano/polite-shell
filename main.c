@@ -3,6 +3,8 @@
 #include <errno.h>
 #include <ctype.h>
 #include <string.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #define MAX_WORDS 3
 
@@ -11,6 +13,23 @@ void make_lower(char * inp_str) {
     for ( ; *inp_str; ++inp_str) *inp_str = tolower( (unsigned char)*inp_str );
 }
 
+// https://www.dmulholl.com/lets-build/a-command-line-shell.html
+void execute_cmd(char **args) {
+    pid_t child_pid = fork();
+
+    if (child_pid == 0) {
+        execvp(args[0], args);
+        perror("shy_shell");
+        exit(1);
+    } else if (child_pid > 0) {
+        int status;
+        do {
+            waitpid(child_pid, &status, WUNTRACED);
+        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    } else {
+        perror("shy_shell");
+    }
+}
 
 
 void process_cmd(char ** tokens, char ** res) {
@@ -40,14 +59,75 @@ void process_cmd(char ** tokens, char ** res) {
         *res = malloc(11 * sizeof(char));
         strcpy(*res, "Bye-bye! :)");
     } else if (strcmp(tokens[0], "please") == 0) {
-        *res = malloc(18 * sizeof(char));
-        strcpy(*res, "Why certainly! :)");
+        char * true_cmd;
+        int flag = 0;
+        int is_not_here = 1;
+
+        if (strcmp(tokens[1], "list_items_from") == 0) {
+            true_cmd = malloc(3 * sizeof(char));
+            strcpy(true_cmd, "ls");
+
+            if (strcmp(tokens[2], "here") == 0) {
+                is_not_here--;
+            } 
+
+            flag = 1;
+        }
+
+        char ** args = malloc((is_not_here + 1) * sizeof(char *));
+
+
+        if (flag) {
+            *res = malloc(18 * sizeof(char));
+            strcpy(*res, "Why certainly! :)");
+
+            args[0] = true_cmd;
+
+            if (is_not_here) {
+                args[1] = tokens[2];
+            }
+
+            execute_cmd(args);
+        } else {
+            *res = malloc(28 * sizeof(char));
+            strcpy(*res, "Sorry, I don't understand :(");
+        }
     } else if (strcmp(tokens[1], "please") == 0) {
-        *res = malloc(13 * sizeof(char));
-        strcpy(*res, "Naturally! :)");
+        *res = malloc(28 * sizeof(char));
+        strcpy(*res, "Sorry, I don't understand :(");
     } else if (strcmp(tokens[2], "please") == 0) {
-        *res = malloc(18 * sizeof(char));
-        strcpy(*res, "But of course! :)");
+        char * true_cmd;
+        int is_not_here = 1;
+        int flag = 0;
+
+        if (strcmp(tokens[0], "list_items_from") == 0) {
+            true_cmd = malloc(3 * sizeof(char));
+            strcpy(true_cmd, "ls");
+
+            if (strcmp(tokens[1], "here") == 0) {
+                is_not_here--;
+            } 
+
+            flag = 1;
+        }
+
+        char ** args = malloc((is_not_here + 1) * sizeof(char *));
+
+        if (flag) {
+            *res = malloc(18 * sizeof(char));
+            strcpy(*res, "But of course! :)");
+
+            args[0] = true_cmd;
+
+            if (is_not_here) {
+                args[1] = tokens[1];
+            }
+
+            execute_cmd(args);
+        } else {
+            *res = malloc(28 * sizeof(char));
+            strcpy(*res, "Sorry, I don't understand :(");
+        }
     } else {
         *res = malloc(16 * sizeof(char));
         strcpy(*res, "You are rude :(");
@@ -95,10 +175,7 @@ char * read_input(void) {
 
 int main(int argc, char **argv) {
     char * res;
-
-
     do {
-
         fprintf(stderr, "(o _ o) <(");
         res = read_input();
 
