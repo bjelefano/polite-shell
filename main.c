@@ -15,19 +15,25 @@ void make_lower(char * inp_str) {
 
 // https://www.dmulholl.com/lets-build/a-command-line-shell.html
 void execute_cmd(char **args) {
-    pid_t child_pid = fork();
-
-    if (child_pid == 0) {
-        execvp(args[0], args);
-        perror("shy_shell");
-        exit(1);
-    } else if (child_pid > 0) {
-        int status;
-        do {
-            waitpid(child_pid, &status, WUNTRACED);
-        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    if (strcmp(args[0], "cd") == 0) {
+        if (chdir(args[1]) != 0) {
+            perror("shy_shell - teleport_to");
+        }
     } else {
-        perror("shy_shell");
+        pid_t child_pid = fork();
+
+        if (child_pid == 0) {
+            execvp(args[0], args);
+            perror("shy_shell - list_items_from");
+            exit(1);
+        } else if (child_pid > 0) {
+            int status;
+            do {
+                waitpid(child_pid, &status, WUNTRACED);
+            } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        } else {
+            perror("shy_shell: list_items_from");
+        }
     }
 }
 
@@ -72,12 +78,24 @@ void process_cmd(char ** tokens, char ** res) {
             } 
 
             flag = 1;
+        } else if (strcmp(tokens[1], "teleport_to") == 0) {
+            true_cmd = malloc(3 * sizeof(char));
+            strcpy(true_cmd, "cd");
+
+            if (strcmp(tokens[2], "here") == 0) {
+                is_not_here--;
+            } 
+
+            flag = 1;
         }
 
         char ** args = malloc((is_not_here + 1) * sizeof(char *));
 
 
-        if (flag) {
+        if (strcmp(true_cmd, "cd") == 0 && !is_not_here) {
+            *res = malloc(30 * sizeof(char));
+            strcpy(*res, "You are already here silly! :)");
+        } else if (flag) {
             *res = malloc(18 * sizeof(char));
             strcpy(*res, "Why certainly! :)");
 
@@ -109,11 +127,23 @@ void process_cmd(char ** tokens, char ** res) {
             } 
 
             flag = 1;
+        } else if (strcmp(tokens[0], "teleport_to") == 0) {
+            true_cmd = malloc(3 * sizeof(char));
+            strcpy(true_cmd, "cd");
+
+            if (strcmp(tokens[1], "here") == 0) {
+                is_not_here--;
+            } 
+
+            flag = 1;
         }
 
         char ** args = malloc((is_not_here + 1) * sizeof(char *));
 
-        if (flag) {
+        if (strcmp(true_cmd, "cd") == 0 && !is_not_here) {
+            *res = malloc(30 * sizeof(char));
+            strcpy(*res, "You are already here silly! :)");
+        } else if (flag) {
             *res = malloc(18 * sizeof(char));
             strcpy(*res, "But of course! :)");
 
@@ -168,8 +198,13 @@ char * read_input(void) {
 
     tokens[num_tokens] = NULL;
 
-    process_cmd(tokens, &res);
-
+    if (strcmp(tokens[0], "goodbye") == 0 || num_tokens == 3) {
+        process_cmd(tokens, &res);
+    } else {
+        res = malloc(29 * sizeof(char));
+        strcpy(res, "Sorry, I don't understand. :(");
+    }
+    
     return res;
 }
 
